@@ -1,0 +1,112 @@
+
+<META HTTP-EQUIV="pragma" CONTENT="no-cache">
+
+{% extends "base.html" %}
+
+
+
+{% block head %}
+    <title>股票历史价格</title>
+    <script src="/static/js/echarts.min.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $("#stat1").attr("style", "display:block;");//显示div
+            $("#stat2").attr("style", "display:none;");//隐藏div
+            $("#stat3").attr("style", "display:none;");//隐藏div
+            $("#stat4").attr("style", "display:none;");//隐藏div
+        });
+
+        function get_stock_code() {
+            search = $('input#search').val();
+             console.log(search);
+                $.ajax({
+                    type: 'post',
+                    data: search
+                })
+        }
+
+         {#function switchImg() {#}
+			{#	var ssr = "{{ url_for('static',filename='images/realtime.gif')}}";#}
+			{#	var ima = document.getElementById("ima");#}
+			{#	var index = new Date().getTime();#}
+			{#	ima.src = ssr+"?res="+index;#}
+         {# }#}
+
+        function stat1() {
+            $("#stat1").attr("style", "display:block;");//显示div
+            $("#stat2").attr("style", "display:none;");//隐藏div
+            $("#stat3").attr("style", "display:none;");//隐藏div
+            $("#stat4").attr("style", "display:none;");//隐藏div
+        }
+
+        function stat2() {
+            $("#stat2").attr("style", "display:block;");//显示div
+            $("#stat1").attr("style", "display:none;");//隐藏div
+            $("#stat3").attr("style", "display:none;");//隐藏div
+            $("#stat4").attr("style", "display:none;");//隐藏div
+        }
+        function stat3() {
+            $("#stat3").attr("style", "display:block;");//显示div
+            $("#stat1").attr("style", "display:none;");//隐藏div
+            $("#stat2").attr("style", "display:none;");//隐藏div
+            $("#stat4").attr("style", "display:none;");//隐藏div
+        }
+        function stat4() {
+            $("#stat4").attr("style", "display:block;");//显示div
+            $("#stat1").attr("style", "display:none;");//隐藏div
+            $("#stat2").attr("style", "display:none;");//隐藏div
+            $("#stat3").attr("style", "display:none;");//隐藏div
+        }
+    </script>
+{% endblock %}
+
+
+{% block body %}
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <div class="input-group mb-3" style="width: 400px;">
+                    <input type="text" class="form-control" placeholder="输入股票代码"
+                           aria-label="search" aria-describedby="basic-addon2"
+                           id="search">
+                    <button type="button" class="btn btn-outline-info" style="margin-left: 10px" onclick="get_stock_code()">
+                        确认
+                    </button>
+{#                    <button type="button"  onclick="document.execCommand('Refresh') ">查询</button>#}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row">
+            <div class="col-2" style="background-color: #dee2e6">
+                <ul class="list-group" style="height: 500px;margin-left: -15px;width: 118%">
+                    <button type="button" class="list-group-item list-group-item-action" onclick="stat1()">real-time</button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="stat2()">weekly</button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="stat3()">monthly</button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="stat4()">yearly</button>
+                </ul>
+            </div>
+            <div class="col-10">
+                <div id="stat1">
+                        <img src="{{ url_for('static',filename='images/realtime.gif')}}" alt="">
+                </div>
+                <div id="stat2">
+                    <p>
+                        <img src="{{ url_for('static',filename='images/weekly.gif')}}" alt="" >
+                    </p>
+                </div>
+                <div id="stat3">
+                    <p>
+                        <img src="{{ url_for('static',filename='images/monthly.gif')}}" alt="" >
+                    </p>
+                </div>
+                <div id="stat4">
+                    <p>
+                        <img src="{{ url_for('static',filename='images/yearly.gif')}}" alt="" >
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

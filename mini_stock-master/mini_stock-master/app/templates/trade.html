@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block head %}
+    <title>股票交易管理</title>
+    <script type="text/javascript">
+        var current_page = 1
+        var page_size = 10
+        var search = '';
+        $(document).ready(function () {
+            get_page(current_page, page_size, search);
+        });
+        {#定时刷行情页面，当前设置为60秒#}
+        $(function () {
+            {#setInterval(refresh_page, 60 * 1000);#}
+        });
+
+        function refresh_page() {
+            var time1 = new Date()
+            get_page(current_page, page_size, search);
+            var time2 = new Date()
+            console.log(time2.getTime() - time1.getTime())
+        }
+
+        function get_page(page, pagesize, search) {
+            info = {page: page, pagesize: pagesize, search: search}
+            current_page = page
+            $.ajax({
+                url: '/stock/list_hq',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(info),
+                success: function (res) {
+                    console.log(res)
+                    allresult = JSON.parse(res.data);
+                    $("#tbodycontent").html("");
+                    for (i = 0; i < allresult.length; i++) {
+                        {#根据涨跌，调整显示颜色#}
+                        tmpone = allresult[i]['range'] > 0 ? '<tr style="color: red">' : '<tr style="color: green">';
+                        tmpone = tmpone + '<td>' + allresult[i]['id'] + '</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['stock_code'] + '</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['stock_name'] + '</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['rt_price'] + '</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['rate'] + '%</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['range'] + '</td>'
+                        tmpone = tmpone + '<td>'
+                        tmpone = tmpone + '<button type="button" class="btn btn-outline-warning btn-sm" ' +
+                            'onClick="trade_stock(`' + allresult[i]['stock_code'] + '`,`' + allresult[i]['rt_price'] + '`)">交易</button>'
+                        tmpone = tmpone + '</td>'
+                        tmpone = tmpone + '</tr>'
+                        $("#tbodycontent").append(tmpone);
+                    }
+                    $("#pageinfo").html("");
+                    pagedown = '<button type="button" onclick="get_page(' + (page - 1) + ',' + pagesize + ', \'' + search + '\')" class="btn btn-sm">上一页</button>'
+                    pageup = '<button type="button" onclick="get_page(' + (page + 1) + ',' + pagesize + ', \'' + search + '\')" class="btn btn-sm">下一页</button>'
+                    $("#pageinfo").html("当前：<p style='display: inline;' id='page'>" + page + "/" + res.pages + "页</p>");
+                    if (res.page > 1) {
+                        $("#pageinfo").append(" " + pagedown);
+                    }
+                    if (res.page < res.pages) {
+                        $("#pageinfo").append(" " + pageup);
+                    }
+                }
+            });
+
+        };
+
+        function get_search() {
+            search = $('input#search').val();
+            console.log(search);
+            get_page(1, page_size, search);
+        }
+
+        function trade_stock(stock_code, price) {
+            $("#stockTrade").modal('show');
+            $('#stock_trade')[0].reset();
+            $('#trade_stock').val(stock_code);
+            $('#trade_price').val(price);
+            info = {stock_code: stock_code}
+            $.ajax({
+                url: '/trade/get_by_account',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(info),
+                success: function (res) {
+                    console.log(res)
+                    $('#account_number').val(res.account);
+                    $('#account_name').val(res.account_name);
+                    $('#balance').val(res.balance);
+                    $('#stock_number').val(res.stock_number);
+                    $('#stock_cost').val(res.stock_cost);
+                    //计算持仓收益，sell_earning
+                    var earning = res.stock_number*(price - res.stock_cost)
+                    console.log(earning)
+                    $('#sell_earning').val(earning.toFixed(2));
+                    // 判断持仓数据，如果持仓数量为0，不允点卖出按钮
+                    if (res.stock_number <= 0) {
+                        $('#sellBtn').attr('disabled', 'True')
+                        $('#sellSelect').attr('disabled', 'True')
+                    }
+                },
+                error: function (XmlHttpRequest, textStatus, errorThrown) {
+                    alert("帐户信息获取失败;" + XmlHttpRequest.responseText);
+                }
+            });
+        }
+
+        //交易量计算
+        function volume_compute(ratio) {
+            var balance = $('#balance').val();
+            var price = $('#trade_price').val();
+            //要留千分之2手续费，每次交易不少于100股
+            var volume = Math.floor(balance * ratio / price / 100 / 1.002) * 100
+            $('#trade_number').val(volume);
+        }
+
+        //卖出股票数量选取，将股票持仓，全部放到交易数量字段
+        function sell_compute() {
+            var volume = $('#stock_number').val();
+            //计算预期收益，收益为正为红色，绿亏损, TODO后续有持仓与收益再添加
+            var earning = 0
+            $('#sell_earning').val(earning);
+            $('#trade_number').val(volume);
+        }
+
+        //买入股票交易功能
+        function buy_stock() {
+            //检查购买数量是否超出帐户金额余额
+            var balance = $('#balance').val();
+            var price = $('#trade_price').val();
+            var volume = $('#trade_number').val();
+            if (balance < volume * price * 1.002) {
+                alert('购买股票数量所需要资金超过帐户余额！！！')
+                return
+            }
+            if (volume == undefined || volume <= 0) {
+                alert('不能为空或0！！！')
+                return
+            }
+            if (volume / 100 != Math.floor(volume / 100)) {
+                alert('股票购买数量必须为100的倍数！！！')
+                return
+            }
+            var account_number = $('#account_number').val();
+            var stock_code = $('#trade_stock').val();
+            param = {'account': account_number, 'stock_code': stock_code, 'trade_number': volume, 'price': price}
+            $.ajax({
+                url: '/trade/buy_stock',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(param),
+                success: function (res) {
+                    // 后台返回添加代码，价格低，交易成功，数据库写错误，参数错误等信息返回并处理
+                    console.log(res)
+                    $("#stockTrade").modal('hide');
+                },
+                error: function (XmlHttpRequest, textStatus, errorThrown) {
+                    alert("股票交易失败;" + XmlHttpRequest.responseText);
+                }
+            });
+        }
+
+        //卖出股票交易功能
+        function sell_stock() {
+            //检查购买数量是否超出帐户金额余额
+            var stock_number = $('#stock_number').val();
+            var price = $('#trade_price').val();
+            var volume = $('#trade_number').val();
+            if (volume > stock_number) {
+                alert('卖出数量不能大于持仓数据！！！')
+                return
+            }
+            var account_number = $('#account_number').val();
+            var stock_code = $('#trade_stock').val();
+            param = {'account': account_number, 'stock_code': stock_code, 'trade_number': volume, 'price': price}
+            $.ajax({
+                url: '/trade/sell_stock',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(param),
+                success: function (res) {
+                    // 后台返回添加代码，价格低，交易成功，数据库写错误，参数错误等信息返回并处理
+                    console.log(res)
+                    $("#stockTrade").modal('hide');
+                },
+                error: function (XmlHttpRequest, textStatus, errorThrown) {
+                    alert("股票交易失败;" + XmlHttpRequest.responseText);
+                }
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <div class="input-group mb-3" style="width: 400px;">
+                    <input type="text" class="form-control" placeholder="查询条件"
+                           aria-label="search" aria-describedby="basic-addon2"
+                           id="search">
+                    <button type="button" class="btn btn-outline-info" style="margin-left: 10px" onclick="get_search()">
+                        查询
+                    </button>
+                </div>
+
+                <table class="table table-bordered table-hover">
+                    <thead>
+                    <th style="width: 60px;text-align: center">序号</th>
+                    <th style="width: 100px;text-align: center">股票代码</th>
+                    <th style="width: 150px;text-align: center">股票名称</th>
+                    <th style="width: 120px;text-align: center">最新价格</th>
+                    <th style="width: 120px;text-align: center">涨幅</th>
+                    <th style="width: 150px;text-align: center">涨跌</th>
+                    <th style="width: 150px;text-align: center">操作</th>
+                    </thead>
+                    <tbody id="tbodycontent">
+
+                    </tbody>
+                </table>
+                <p id="pageinfo"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 股票交易功能模态框（Modal） -->
+    <div class="modal fade" id="stockTrade" tabindex="-1" role="dialog" aria-labelledby="股票交易"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="myModalLabel">
+                        股票交易(模拟)
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form role="form" id="stock_trade">
+                        <div class="row">
+                            <div class="input-group input-group-sm mb-3" style="width: 39%">
+                                <input type="text" class="form-control" id="account_number"
+                                       aria-label="Sizing example input"
+                                       aria-describedby="inputGroup-sizing-sm" hidden>
+                                <input type="text" class="form-control" id="account_name"
+                                       aria-label="Sizing example input"
+                                       aria-describedby="inputGroup-sizing-sm" disabled>
+                                <input type="number" class="form-control" id="balance"
+                                       aria-describedby="inputGroup-sizing-sm" disabled>
+                            </div>
+                            <div class="input-group input-group-sm mb-3" style="width: 59%">
+                                <input type="text" class="form-control" id="trade_stock"
+                                       aria-label="Sizing example input"
+                                       aria-describedby="inputGroup-sizing-sm" disabled>
+                                <input type="text" class="form-control" id="stock_number"
+                                       aria-label="Sizing example input"
+                                       aria-describedby="inputGroup-sizing-sm" disabled>
+                                <input type="text" class="form-control" id="stock_cost"
+                                       aria-label="Sizing example input"
+                                       aria-describedby="inputGroup-sizing-sm" disabled>
+                            </div>
+                            <div style="width: 48%">
+                                <div class="input-group mb-3" style="margin-left: 5px">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" id="basic-addon1">价格：</span>
+                                    </div>
+                                    <input type="number" class="form-control" id="trade_price"
+                                           aria-describedby="basic-addon1" step="0.01">
+                                </div>
+                            </div>
+                            <div style="width: 48%">
+                                <div class="input-group mb-3" style="margin-left: 10px">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" id="basic-addon1">数量：</span>
+                                    </div>
+                                    <input type="number" class="form-control" id="trade_number"
+                                           aria-describedby="basic-addon1" step="100">
+                                </div>
+                            </div>
+                            <div class="input-group input-group-sm mb-3" style="width: 98%">
+                                <input type="text" class="form-control" id="sell_earning"
+                                       style="margin-left: 5px"
+                                       aria-describedby="inputGroup-sizing-sm" disabled>
+                            </div>
+                            <div class="modal-footer" style="width: 98%">
+                                <div class="btn-group" role="group" aria-label="Basic example">
+                                    <button type="button" class="btn btn-info" onclick="volume_compute(1)">全仓</button>
+                                    <button type="button" class="btn btn-info" onclick="volume_compute(0.5)">1/2仓
+                                    </button>
+                                    <button type="button" class="btn btn-info" onclick="volume_compute(0.25)">1/4仓
+                                    </button>
+                                    <button type="button" class="btn btn-danger" onclick="buy_stock()">买入</button>
+                                </div>
+                                <div class="btn-group" role="group" style="margin-left: 90px">
+                                    <button type="button" id="sellSelect" class="btn btn-info" onclick="sell_compute()">
+                                        全选
+                                    </button>
+                                    <button type="button" id="sellBtn" class="btn btn-primary" onclick="sell_stock()">卖出
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal -->
+    </div>
+{% endblock %}

@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block head %}
+    <title>用户管理</title>
+    <script type="text/javascript">
+        var current_page = 1
+        var page_size = 10
+        $(document).ready(function () {
+            get_page(1, page_size, '');
+        });
+
+        function get_page(page, pagesize, search) {
+            info = {page: page, pagesize: pagesize, search: search}
+            current_page = page
+            $.ajax({
+                url: '/user/list',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(info),
+                success: function (res) {
+                    console.log(res)
+                    allresult = JSON.parse(res.data);
+                    $("#tbodycontent").html("");
+                    //name, hosts_path, playbook_path, forks
+                    for (i = 0; i < allresult.length; i++) {
+                        tmpone = '<tr>'
+                        tmpone = tmpone + '<td>' + allresult[i]['id'] + '</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['user_name'] + '</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['email'] + '</td>'
+                        tmpone = tmpone + '<td>' + allresult[i]['mobile_phone'] + '</td>'
+                        if (allresult[i]['status'] == 0) {
+                            tmpone = tmpone + '<td>正常</td>'
+                        } else {
+                            tmpone = tmpone + '<td>禁止</td>'
+                        }
+                        tmpone = tmpone + '<td>'
+                        tmpone = tmpone + '<button type="button" class="btn btn-outline-warning btn-sm" onClick="reset_password(' + allresult[i]['id'] + ')">重置密码</button>'
+                        if (allresult[i]['id'] != 1) {
+                            tmpone = tmpone + '<button type="button" class="btn btn-outline-warning btn-sm" style="margin-left: 1px;"  onClick="modify_user(' + allresult[i]['id'] + ')">修改</button>'
+                            tmpone = tmpone + ' <button type="button" class="btn btn-outline-warning btn-sm" style="margin-left: 1px;" onClick="delete_by_id(' + allresult[i]['id'] + ')">删除</button>'
+                        }
+                        tmpone = tmpone + '</td>'
+                        tmpone = tmpone + '</tr>'
+                        $("#tbodycontent").append(tmpone);
+                    }
+                    $("#pageinfo").html("");
+                    pagedown = '<button type="button" onclick="get_page(' + (page - 1) + ',' + pagesize + ', \'' + search + '\')" class="btn btn-sm">上一页</button>'
+                    pageup = '<button type="button" onclick="get_page(' + (page + 1) + ',' + pagesize + ', \'' + search + '\')" class="btn btn-sm">下一页</button>'
+                    $("#pageinfo").html("当前：<p style='display: inline;' id='page'>" + page + "/" + res.pages + "页</p>");
+                    if (res.page > 1) {
+                        $("#pageinfo").append(" " + pagedown);
+                    }
+                    if (res.page < res.pages) {
+                        $("#pageinfo").append(" " + pageup);
+                    }
+                }
+            });
+
+        }
+
+        function get_search() {
+            var search = $('input#search').val();
+            console.log(search);
+            get_page(1, page_size, search);
+        }
+
+        function delete_by_id(id) {
+            if (confirm("确认是否删除ID=" + id + "的用户？")) {
+                var param = {id: id}
+                console.log(param)
+                var search = $('input#search').val();
+                $.ajax({
+                    url: '/user/delete',
+                    type: 'post',
+                    cache: false,
+                    data: JSON.stringify(param),
+                    success: function (res) {
+                        console.log(res)
+                        get_page(current_page, page_size, search)
+                    }
+                });
+            }
+        }
+
+        function reset_password(id) {
+            $("#user_id").val(id);
+            $("#reset").modal('show');
+        }
+
+        function set_password() {
+            var user_id = $('#user_id').val();
+            var password = $('#password').val();
+            var param = {id: user_id, password: password}
+            console.log(param)
+            $.ajax({
+                url: '/user/reset',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(param),
+                success: function (res) {
+                    console.log(res)
+                    $("#reset").modal('hide');
+                }
+            });
+        }
+
+        function add_user() {
+            var user_name = $('#user_name').val();
+            var email = $('#email').val();
+            var mobile_phone = $('#mobile_phone').val();
+            var user_type = $('#user_type').val();
+            var param = {user_name: user_name, email: email, mobile_phone: mobile_phone, user_type: user_type}
+            console.log(param)
+            var search = $('input#search').val();
+            $.ajax({
+                url: '/user/add_user',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(param),
+                success: function (res) {
+                    console.log(res)
+                    $("#addUser").modal('hide');
+                    $('#user_name').val('');
+                    $('#email').val('');
+                    $('#mobile_phone').val('');
+                    $('#user_type').val('');
+                    get_page(current_page, page_size, search)
+                },
+                error: function (XmlHttpRequest, textStatus, errorThrown) {
+                    alert("用户添加失败;" + XmlHttpRequest.responseText);
+                }
+            });
+        }
+
+        function modify_user(id) {
+            var param = {id: id}
+            $.ajax({
+                url: '/user/get_by_id',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(param),
+                success: function (res) {
+                    user2 = JSON.parse(res)
+                    console.log(user2)
+                    $('#m_user_id').val(user2.id);
+                    if (user2.status == 0) {
+                        $('#m_status_0').attr('checked', 'true');
+                    } else {
+                        $('#m_status_1').attr('checked', 'true');
+                    }
+                    $('#m_user_name').val(user2.user_name);
+                    $('#m_email').val(user2.email);
+                    $('#m_mobile_phone').val(user2.mobile_phone);
+                    $('#m_user_type').val(user2.user_type);
+                    $("#modifyUser").modal('show');
+                }
+            });
+        }
+
+        function modify_submit() {
+            var user_id = $('#m_user_id').val();
+            var status = $('#status_radio_group input:radio[name="status_radio"]:checked').val();
+            var user_name = $('#m_user_name').val();
+            var email = $('#m_email').val();
+            var mobile_phone = $('#m_mobile_phone').val();
+            var user_type = $('#m_user_type').val();
+            var param = {
+                user_id: user_id,
+                status: status,
+                user_name: user_name,
+                email: email,
+                mobile_phone: mobile_phone,
+                user_type: user_type
+            }
+            console.log(param)
+            var search = $('input#search').val();
+            $.ajax({
+                url: '/user/update',
+                type: 'post',
+                cache: false,
+                data: JSON.stringify(param),
+                success: function (res) {
+                    console.log(res)
+                    $("#modifyUser").modal('hide');
+                    get_page(current_page, page_size, search)
+                }
+            });
+        }
+
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <div class="input-group mb-3" style="width: 400px;">
+                    <button type="button" class="btn btn-outline-primary" data-toggle="modal" data-target="#addUser">
+                        新建用户
+                    </button>
+                    <input type="text" class="form-control" placeholder="查询条件"
+                           aria-label="search" aria-describedby="basic-addon2"
+                           style="margin-left: 10px;" id="search">
+                    <button type="button" class="btn btn-outline-info" style="margin-left: 10px" onclick="get_search()">
+                        收索
+                    </button>
+                </div>
+
+                <table class="table table-bordered table-hover">
+                    <thead>
+                    <!-- name, hosts_path, playbook_path, forks -->
+                    <th style="width: 60px;text-align: center">序号</th>
+                    <th style="width: 100px;text-align: center">用户名</th>
+                    <th style="width: 150px;text-align: center">邮箱</th>
+                    <th style="width: 120px;text-align: center">手机号</th>
+                    <th style="width: 60px;text-align: center">状态</th>
+                    <th style="width: 150px;text-align: center">操作</th>
+                    </thead>
+                    <tbody id="tbodycontent">
+
+                    </tbody>
+                </table>
+                <p id="pageinfo"></p>
+            </div>
+        </div>
+    </div>
+    <!-- 密码重置模态框（Modal） -->
+    <div class="modal fade" id="reset" tabindex="-1" role="dialog" aria-labelledby="密码重置" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="myModalLabel">
+                        密码重置
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1">用户ID：</span>
+                        </div>
+                        <input type="text" class="form-control" id="user_id" aria-describedby="basic-addon1" disabled>
+                    </div>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1">新密码：</span>
+                        </div>
+                        <input type="text" class="form-control" id="password" aria-describedby="basic-addon1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="set_password()">
+                        重置密码
+                    </button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal -->
+    </div>
+
+    <!-- 添加用户模态框（Modal） -->
+    <div class="modal fade bs-example-modal-lg" id="addUser" tabindex="-11" role="dialog" aria-labelledby="新增用户"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="myModalLabel">
+                        用户信息
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 5px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">用户名称：</span>
+                                </div>
+                                <input type="text" class="form-control" id="user_name" aria-describedby="basic-addon1">
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 10px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">邮箱地址：</span>
+                                </div>
+                                <input type="text" class="form-control" id="email" aria-describedby="basic-addon1">
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 5px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">电话号码：</span>
+                                </div>
+                                <input type="text" class="form-control" id="mobile_phone"
+                                       aria-describedby="basic-addon1">
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 10px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">用户类别：</span>
+                                </div>
+                                <select class="custom-select" id="user_type">
+                                    <option value="U">普通用户</option>
+                                    <option value="M">管理员</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="add_user()">
+                        添加用户
+                    </button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal -->
+    </div>
+
+    <!-- 修改用户信息模态框（Modal） -->
+    <div class="modal fade bs-example-modal-lg" id="modifyUser" tabindex="-111" role="dialog" aria-labelledby="新增用户"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="myModalLabel">
+                        用户信息
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 5px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">用户ID：</span>
+                                </div>
+                                <input type="text" class="form-control" id="m_user_id" aria-describedby="basic-addon1"
+                                       disabled>
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" id="status_radio_group" style="margin-left: 10px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">用户状态：</span>
+                                </div>
+                                <div class="custom-control custom-radio" style="margin-left: 10px;margin-top: 5px">
+                                    <input type="radio" id="m_status_0" name="status_radio"
+                                           class="custom-control-input" value="0">
+                                    <label class="custom-control-label" for="m_status_0">正常</label>
+                                </div>
+                                <div class="custom-control custom-radio" style="margin-left: 10px;margin-top: 5px">
+                                    <input type="radio" id="m_status_1" name="status_radio"
+                                           class="custom-control-input" value="1">
+                                    <label class="custom-control-label" for="m_status_1">禁用</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 5px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">用户名称：</span>
+                                </div>
+                                <input type="text" class="form-control" id="m_user_name"
+                                       aria-describedby="basic-addon1">
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 10px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">邮箱地址：</span>
+                                </div>
+                                <input type="text" class="form-control" id="m_email" aria-describedby="basic-addon1">
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 5px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">电话号码：</span>
+                                </div>
+                                <input type="text" class="form-control" id="m_mobile_phone"
+                                       aria-describedby="basic-addon1">
+                            </div>
+                        </div>
+                        <div style="width: 49%">
+                            <div class="input-group mb-3" style="margin-left: 10px">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">用户类别：</span>
+                                </div>
+                                <select class="custom-select" id="m_user_type">
+                                    <option value="U">普通用户</option>
+                                    <option value="M">管理员</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="modify_submit()">
+                        提交
+                    </button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal -->
+    </div>
+{% endblock %}

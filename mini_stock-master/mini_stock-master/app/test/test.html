@@ -1,0 +1,40 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js">
+</script>
+<script type="text/javascript">
+	$(document).ready(function(){
+		$("tr:gt(0) td:last-child").each(function(i,j){
+			if(new Date($(this).text())<new Date('2013-07-01 11:00:00')){
+			 	$(this).parent().css('color','red');
+			}
+		});
+	});
+</script>
+</head>
+<body>
+ <table>
+  <tr>
+    <td>vid</td>
+    <td>节目名称</td>
+    <td>采集时间</td>
+  </tr>
+  <tr>
+    <td>20130701001</td>
+    <td>节目1</td>
+    <td>2013-07-01 10:00:00</td>
+  </tr>
+  <tr>
+    <td>20130701002</td>
+    <td>节目2</td>
+    <td>2013-07-01 11:00:00</td>
+  </tr>
+  <tr>
+    <td>20130701003</td>
+    <td>节目3</td>
+    <td>2013-07-01 12:00:00</td>
+  </tr>
+  </table>
+</body>
+</html>
