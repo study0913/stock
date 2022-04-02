@@ -30,9 +30,9 @@ Run run.py and visit http://127.0.0.1:5000 to access the stock system.
 
 ![image](https://github.com/study0913/stock/blob/main/mini_stock-master/mini_stock-master/app/test/img_3.png)
 
--Stock Detailes(include real-time,weekly,monthly,yearly trend data of the current stock.)
+- Stock Detailes(include real-time,weekly,monthly,yearly trend data of the current stock.)
 
-
+![image](https://github.com/study0913/stock/blob/main/mini_stock-master/mini_stock-master/app/test/img_5.png)
 - Trading Management:
 
 ![image](https://github.com/study0913/stock/blob/main/mini_stock-master/mini_stock-master/app/test/img_4.png)
